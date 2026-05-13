@@ -15,6 +15,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(MUSE_FRAMEWORK_PATH ${CMAKE_CURRENT_LIST_DIR})
 set(MUSE_FRAMEWORK_SRC_PATH ${MUSE_FRAMEWORK_PATH}/framework)
 
+set(FETCHCONTENT_BASE_DIR ${PROJECT_BINARY_DIR}/_deps)
+
 set(CMAKE_MODULE_PATH
     ${CMAKE_CURRENT_LIST_DIR}
     ${MUSE_FRAMEWORK_PATH}/buildscripts
@@ -73,6 +75,8 @@ endif(MUSE_COMPILE_USE_COMPILER_CACHE)
 ###########################################
 
 include(SetupQt6)
+
+include(SetupDependencies)
 
 ###########################################
 # Add source tree
