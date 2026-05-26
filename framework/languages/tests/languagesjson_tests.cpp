@@ -30,7 +30,7 @@
 
 using namespace muse;
 
-TEST(Languages_Json, DISABLED_Correctness)
+TEST(Languages_Json, Correctness)
 {
     GlobalInject<io::IFileSystem> fileSystem;
 
