@@ -21,6 +21,7 @@
  */
 #include "commandshortcutsregister.h"
 
+#include "containers.h"
 #include "global/io/file.h"
 #include "global/serialization/json.h"
 
@@ -426,4 +427,56 @@ Ret CommandShortcutsRegister::importFromFile(const io::path_t& filePath)
 Ret CommandShortcutsRegister::exportToFile(const io::path_t& filePath) const
 {
     return writeToFile(m_shortcuts, filePath);
+}
+
+std::vector<std::string> CommandShortcutsRegister::availablePresets() const
+{
+    return configuration()->availableShortcutsPresets();
+}
+
+std::string CommandShortcutsRegister::currentPresetName() const
+{
+    return configuration()->currentShortcutsPresetName();
+}
+
+void CommandShortcutsRegister::setCurrentPresetName(const std::string& presetName)
+{
+    configuration()->setCurrentShortcutsPresetName(presetName);
+}
+
+async::Channel<std::string> CommandShortcutsRegister::currentPresetNameChanged() const
+{
+    return configuration()->currentShortcutsPresetNameChanged();
+}
+
+bool CommandShortcutsRegister::isPresetEdited(const std::string& presetName) const
+{
+    std::string name = presetName.empty() ? configuration()->defaultShortcutsName() : presetName;
+    return io::File::exists(configuration()->commandShortcutsUserAppDataPath(name));
+}
+
+bool CommandShortcutsRegister::canDeletePreset(const std::string& presetName) const
+{
+    if (presetName.empty()) {
+        return false;
+    }
+
+    //! NOTE Built-in presets cannot be deleted
+    return !muse::contains(configuration()->availableShortcutsPresets(), presetName);
+}
+
+void CommandShortcutsRegister::deletePreset(const std::string& presetName)
+{
+    if (!canDeletePreset(presetName)) {
+        return;
+    }
+
+    {
+        mi::WriteResourceLockGuard guard(multiwindowsProvider(), COMMAND_SHORTCUTS_TAG);
+        io::File::remove(configuration()->commandShortcutsUserAppDataPath(presetName));
+    }
+
+    if (currentPresetName() == presetName) {
+        setCurrentPresetName(std::string());
+    }
 }
