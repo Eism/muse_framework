@@ -6,6 +6,7 @@
 # Modified 2020 MuseScore Limited
 # Added option --dumpsyms-bin
 # Added option --arch
+# Resolve @rpath against the main executable's LC_RPATHs too, like dyld does
 
 """A tool to generate symbols for a binary suitable for breakpad.
 
@@ -266,7 +267,10 @@ def GetTransitiveDependencies(options):
       item = q.pop(0)
       deps = GetSharedLibraryDependencies(options, item, exe_path, extra_rpaths)
       if options.platform == 'darwin' and item == binary:
-        extra_rpaths = _mac_rpaths_by_binary.get(os.path.realpath(binary), [])
+        build_dir = os.path.abspath(options.build_dir)
+        extra_rpaths = [
+            rpath for rpath in _mac_rpaths_by_binary.get(os.path.realpath(binary), [])
+            if os.path.abspath(rpath).startswith(build_dir)]
       new_deps = set(deps) - binaries
       binaries |= new_deps
       q.extend(list(new_deps))
