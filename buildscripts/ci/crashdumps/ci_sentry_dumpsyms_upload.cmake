@@ -9,6 +9,7 @@ set(SENTRY_URL "" CACHE STRING "Sentry URL")
 set(SENTRY_AUTH_TOKEN "" CACHE STRING "Sentry Auth Token")
 set(SENTRY_ORG "" CACHE STRING "Sentry Organization")
 set(SENTRY_PROJECT "" CACHE STRING "Sentry Project")
+set(STAGE "" CACHE STRING "Build stage (e.g. stable, testing, nightly, devel)")
 
 # Check
 if(NOT SENTRY_URL)
@@ -28,6 +29,7 @@ message(STATUS "SYMBOLS_PATH: ${SYMBOLS_PATH}")
 message(STATUS "SENTRY_URL: ${SENTRY_URL}")
 message(STATUS "SENTRY_ORG: ${SENTRY_ORG}")
 message(STATUS "SENTRY_PROJECT: ${SENTRY_PROJECT}")
+message(STATUS "STAGE: ${STAGE}")
 
 set(LOCAL_ROOT_PATH "${HERE}/_deps")
 set(EXTDEPS_DIR "${CMAKE_SOURCE_DIR}/muse_deps" CACHE PATH "muse_deps checkout")
@@ -48,6 +50,11 @@ execute_process(
     COMMAND ${SENTRY_CLI} upload-dif -o ${SENTRY_ORG} -p ${SENTRY_PROJECT} ${SYMBOLS_PATH}
     RESULT_VARIABLE result
 )
+
+# sentry-cli exits 0 even when nothing was uploaded — detect that explicitly
+if(STAGE STREQUAL "stable" AND output MATCHES "No debug information files found")
+    message(FATAL_ERROR "Failed symbols uploaded: no debug information files found in ${SYMBOLS_PATH}")
+endif()
 
 if(result EQUAL 0)
     message(STATUS "Success symbols uploaded")
