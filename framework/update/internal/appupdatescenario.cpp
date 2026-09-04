@@ -145,7 +145,7 @@ Promise<Ret> AppUpdateScenario::showReleaseInfo(const ReleaseInfo& info)
         }
 
         if (actionCode == "skip") {
-            configuration()->setSkippedReleaseVersion(info.version);
+            skipRelease(info.version);
             return resolve(muse::make_ret(Ret::Code::Cancel));
         }
 
@@ -356,10 +356,24 @@ void AppUpdateScenario::downloadUpdateInBackground()
             return;
         }
 
+        //! NOTE: The release may have been skipped while the download was running.
+        if (!hasUpdate()) {
+            return;
+        }
+
         m_readyPackagePath = res.val.toString();
         m_readyUpdateVersion = service()->lastCheckResult().val.version;
         m_hasReadyUpdateChanged.notify();
     }, Asyncable::Mode::SetReplace);
+}
+
+void AppUpdateScenario::skipRelease(const std::string& version)
+{
+    configuration()->setSkippedReleaseVersion(version);
+    service()->removeDownloadedRelease();
+
+    m_readyPackagePath = io::path_t();
+    m_hasReadyUpdateChanged.notify();
 }
 
 bool AppUpdateScenario::hasReadyUpdate() const
@@ -396,9 +410,7 @@ void AppUpdateScenario::installReadyUpdate()
         const QString actionCode = val.toQString();
 
         if (actionCode == "skip") {
-            configuration()->setSkippedReleaseVersion(m_readyUpdateVersion);
-            m_readyPackagePath = io::path_t();
-            m_hasReadyUpdateChanged.notify();
+            skipRelease(m_readyUpdateVersion);
             return;
         }
 

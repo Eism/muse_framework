@@ -78,6 +78,7 @@ private:
     muse::async::Promise<Ret> askToRestartAndInstall(const io::path_t& packagePath, const io::path_t& preparedPath);
 
     bool shouldIgnoreUpdate(const ReleaseInfo& info) const;
+    void skipRelease(const std::string& version);
 
     bool m_checkInProgress = false;
 

@@ -681,6 +681,15 @@ io::path_t AppUpdateService::downloadedReleasePath() const
     return path;
 }
 
+void AppUpdateService::removeDownloadedRelease()
+{
+    if (m_downloadInProgress) {
+        m_updateProgress.cancel();
+    }
+
+    cleanupStalePackages(/*keepFileName*/ std::string());
+}
+
 io::path_t AppUpdateService::packagesDir() const
 {
     return canAutoInstall() ? configuration()->updateDataPath() : configuration()->downloadsPath();

@@ -99,6 +99,11 @@ public:
         m_scenario->downloadUpdateInBackground();
     }
 
+    void skipRelease(const std::string& version)
+    {
+        m_scenario->skipRelease(version);
+    }
+
     async::Promise<Ret> downloadRelease()
     {
         return m_scenario->downloadRelease();
@@ -337,4 +342,49 @@ TEST_F(AppUpdateScenarioTests, PrepareAndInstall_NotEnoughDiskSpace_Retry_Prepar
     pump();
 
     EXPECT_EQ(result.code(), static_cast<int>(Ret::Code::Cancel));
+}
+
+TEST_F(AppUpdateScenarioTests, SkipRelease_RemovesPackage_AndClearsReadyUpdate)
+{
+    //! [GIVEN] The release was downloaded in the background and is ready to install
+    ON_CALL(*m_networkInformation, isMetered())
+    .WillByDefault(Return(false));
+    EXPECT_CALL(*m_service, downloadRelease())
+    .WillOnce(Return(RetVal<Progress>::make_ok(m_downloadProgress)));
+
+    downloadUpdateInBackground();
+    m_downloadProgress.finish(ProgressResult::make_ok(Val(std::string("upd/MuseScore.dmg"))));
+    ASSERT_TRUE(m_scenario->hasReadyUpdate());
+
+    //! [THEN] The version is remembered as skipped and the package is deleted
+    EXPECT_CALL(*m_configuration, setSkippedReleaseVersion("1000.0"));
+    EXPECT_CALL(*m_service, removeDownloadedRelease());
+
+    //! [WHEN] The user skips the release
+    skipRelease("1000.0");
+
+    //! [THEN] Nothing is left to install
+    EXPECT_FALSE(m_scenario->hasReadyUpdate());
+}
+
+TEST_F(AppUpdateScenarioTests, SkipRelease_WhileDownloading_DoesNotSurfaceUpdate)
+{
+    //! [GIVEN] A background download is running
+    ON_CALL(*m_networkInformation, isMetered())
+    .WillByDefault(Return(false));
+    EXPECT_CALL(*m_service, downloadRelease())
+    .WillOnce(Return(RetVal<Progress>::make_ok(m_downloadProgress)));
+
+    downloadUpdateInBackground();
+
+    //! [WHEN] The user skips the release before the download finishes
+    ON_CALL(*m_configuration, skippedReleaseVersion())
+    .WillByDefault(Return("1000.0"));
+    skipRelease("1000.0");
+
+    //! [WHEN] The (not yet canceled) download still reports success
+    m_downloadProgress.finish(ProgressResult::make_ok(Val(std::string("upd/MuseScore.dmg"))));
+
+    //! [THEN] The skipped release is not surfaced as ready to install
+    EXPECT_FALSE(m_scenario->hasReadyUpdate());
 }
