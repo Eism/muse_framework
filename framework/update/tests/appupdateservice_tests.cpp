@@ -670,3 +670,53 @@ TEST_F(AppUpdateServiceTests, PrepareUpdate_EnoughDiskSpace_Stages)
     RetVal<io::path_t> rv = m_service->prepareUpdate(package);
     EXPECT_TRUE(rv.ret);
 }
+
+TEST_F(AppUpdateServiceTests, RemoveDownloadedRelease_RemovesPackageAndPartial)
+{
+    //! [GIVEN] A release whose package was recorded as downloaded
+    givenAvailableRelease();
+    ON_CALL(*m_configuration, lastDownloadedPackagePath())
+    .WillByDefault(Return(io::path_t("upd/MuseScore.dmg")));
+    ON_CALL(*m_fileSystem, exists(_))
+    .WillByDefault(Return(Ret(false)));
+
+    //! [THEN] Both the package and its partial file are removed and the record is cleared
+    EXPECT_CALL(*m_fileSystem, remove(io::path_t("upd/MuseScore.dmg"), false))
+    .WillOnce(Return(muse::make_ok()));
+    EXPECT_CALL(*m_fileSystem, remove(io::path_t("upd/MuseScore.dmg.part"), false))
+    .WillOnce(Return(muse::make_ok()));
+    EXPECT_CALL(*m_configuration, setLastDownloadedPackagePath(io::path_t()));
+
+    //! [WHEN] The release is removed
+    m_service->removeDownloadedRelease();
+}
+
+TEST_F(AppUpdateServiceTests, RemoveDownloadedRelease_WhileDownloading_CancelsDownload)
+{
+    //! [GIVEN] A download is in progress
+    givenAvailableRelease();
+    ON_CALL(*m_fileSystem, exists(_))
+    .WillByDefault(Return(Ret(false)));
+    EXPECT_CALL(*m_networkManager, get(_, _, _))
+    .WillOnce(testing::Invoke([this](const QUrl&, IncomingDevicePtr, const RequestHeaders&) {
+        return RetVal<Progress>::make_ok(m_downloadProgress);
+    }));
+
+    RetVal<Progress> rv = m_service->downloadRelease();
+    ASSERT_TRUE(rv.ret);
+
+    bool canceled = false;
+    m_downloadProgress.canceled().onNotify(this, [&canceled]() { canceled = true; });
+
+    //! [WHEN] The release is removed
+    m_service->removeDownloadedRelease();
+
+    //! [THEN] The network request is canceled and a new download may be started
+    EXPECT_TRUE(canceled);
+
+    EXPECT_CALL(*m_networkManager, get(_, _, _))
+    .WillOnce(testing::Invoke([this](const QUrl&, IncomingDevicePtr, const RequestHeaders&) {
+        return RetVal<Progress>::make_ok(m_downloadProgress);
+    }));
+    EXPECT_TRUE(m_service->downloadRelease().ret);
+}
