@@ -118,3 +118,12 @@ muse::io::path_t UpdateConfigurationStub::updateRequestHistoryJsonPath() const
 {
     return "";
 }
+
+std::string UpdateConfigurationStub::installingReleaseVersion() const
+{
+    return {};
+}
+
+void UpdateConfigurationStub::setInstallingReleaseVersion(const std::string&)
+{
+}

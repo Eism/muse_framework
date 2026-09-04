@@ -33,6 +33,7 @@ static const std::string module_name("update");
 static const Settings::Key CHECK_FOR_UPDATE_KEY(module_name, "application/checkForUpdate");
 static const Settings::Key ALLOW_UPDATE_ON_PRERELEASE(module_name, "application/allowUpdateOnPreRelease");
 static const Settings::Key SKIPPED_VERSION_KEY(module_name, "application/skippedVersion");
+static const Settings::Key INSTALLING_VERSION_KEY(module_name, "application/installingVersion");
 static const Settings::Key LAST_DOWNLOADED_PACKAGE_KEY(module_name, "application/lastDownloadedPackage");
 static const Settings::Key AUTO_DOWNLOAD_KEY(module_name, "application/autoDownload");
 
@@ -104,6 +105,16 @@ std::string UpdateConfiguration::skippedReleaseVersion() const
 void UpdateConfiguration::setSkippedReleaseVersion(const std::string& version)
 {
     settings()->setSharedValue(SKIPPED_VERSION_KEY, Val(version));
+}
+
+std::string UpdateConfiguration::installingReleaseVersion() const
+{
+    return settings()->value(INSTALLING_VERSION_KEY).toString();
+}
+
+void UpdateConfiguration::setInstallingReleaseVersion(const std::string& version)
+{
+    settings()->setSharedValue(INSTALLING_VERSION_KEY, Val(version));
 }
 
 muse::io::path_t UpdateConfiguration::lastDownloadedPackagePath() const

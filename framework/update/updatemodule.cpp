@@ -130,5 +130,6 @@ void UpdateContext::resolveImports()
 void UpdateContext::onInit(const IApplication::RunMode&)
 {
     m_appUpdateService->init();
+    m_appUpdateScenario->init();
     m_actionController->init();
 }

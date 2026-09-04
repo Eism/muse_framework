@@ -51,6 +51,9 @@ public:
     virtual std::string skippedReleaseVersion() const = 0;
     virtual void setSkippedReleaseVersion(const std::string& version) = 0;
 
+    virtual std::string installingReleaseVersion() const = 0;
+    virtual void setInstallingReleaseVersion(const std::string& version) = 0;
+
     virtual muse::io::path_t lastDownloadedPackagePath() const = 0;
     virtual void setLastDownloadedPackagePath(const muse::io::path_t& path) = 0;
 

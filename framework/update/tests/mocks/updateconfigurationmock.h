@@ -45,6 +45,9 @@ public:
     MOCK_METHOD(std::string, skippedReleaseVersion, (), (const, override));
     MOCK_METHOD(void, setSkippedReleaseVersion, (const std::string&), (override));
 
+    MOCK_METHOD(std::string, installingReleaseVersion, (), (const, override));
+    MOCK_METHOD(void, setInstallingReleaseVersion, (const std::string&), (override));
+
     MOCK_METHOD(muse::io::path_t, lastDownloadedPackagePath, (), (const, override));
     MOCK_METHOD(void, setLastDownloadedPackagePath, (const muse::io::path_t&), (override));
 

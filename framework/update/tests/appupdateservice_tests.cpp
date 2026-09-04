@@ -29,21 +29,18 @@ using ::testing::Return;
 
 #include "framework/network/networktypes.h"
 
-#include "mocks/updateconfigurationmock.h"
-#include "network/tests/mocks/networkmanagercreatormock.h"
-#include "network/tests/mocks/networkmanagermock.h"
 #include "global/tests/mocks/systeminfomock.h"
 #include "global/tests/mocks/filesystemmock.h"
+#include "global/tests/mocks/applicationmock.h"
+#include "network/tests/mocks/networkmanagercreatormock.h"
+#include "network/tests/mocks/networkmanagermock.h"
+#include "mocks/updateconfigurationmock.h"
 #include "mocks/updateinstallermock.h"
 
 #include "update/internal/appupdateservice.h"
 #include "update/updateerrors.h"
 
-#include "modularity/ioc.h"
-#include "global/iapplication.h"
-
 #include "async/processevents.h"
-#include "async/async.h"
 
 using namespace muse;
 using namespace muse::update;
@@ -53,8 +50,6 @@ using namespace muse::network;
 namespace muse::update {
 class AppUpdateServiceTests : public ::testing::Test, public ::async::Asyncable
 {
-    muse::GlobalInject<muse::IApplication> application;
-
 public:
     void SetUp() override
     {
@@ -81,6 +76,14 @@ public:
 
         m_updateInstaller = std::make_shared<NiceMock<UpdateInstallerMock> >();
         m_service->updateInstaller.set(m_updateInstaller);
+
+        m_application = std::make_shared<NiceMock<ApplicationMock> >();
+        m_service->application.set(m_application);
+
+        ON_CALL(*m_application, fullVersion())
+        .WillByDefault(Return(Version(CURRENT_VERSION)));
+        ON_CALL(*m_application, title())
+        .WillByDefault(Return(String(u"App")));
     }
 
     void TearDown() override
@@ -133,7 +136,7 @@ public:
                                         "{ \"version\": \"%1\", \"notes\": \"blabla2\" },"
                                         "{ \"version\": \"0.4.1\", \"notes\": \"blabla1\" }"
                                         "]"
-                                        "}").arg(application()->fullVersion().toString());
+                                        "}").arg(CURRENT_VERSION);
 
         EXPECT_CALL(*m_networkManager, get(QUrl(QString::fromStdString(previousAppReleasesNotesUrl)), _, _))
         .WillOnce(testing::Invoke(
@@ -168,6 +171,8 @@ public:
         .WillByDefault(Return(muse::make_ok()));
     }
 
+    static constexpr const char* CURRENT_VERSION = "4.0.0";
+
     AppUpdateService* m_service = nullptr;
     std::shared_ptr<UpdateConfigurationMock> m_configuration;
     std::shared_ptr<muse::network::NetworkManagerCreatorMock> m_networkManagerCreator;
@@ -175,6 +180,7 @@ public:
     std::shared_ptr<SystemInfoMock> m_systemInfoMock;
     std::shared_ptr<io::FileSystemMock> m_fileSystem;
     std::shared_ptr<UpdateInstallerMock> m_updateInstaller;
+    std::shared_ptr<ApplicationMock> m_application;
     Progress m_getReleaseInfoProgress;
     Progress m_getPrevReleasesInfoProgress;
     Progress m_downloadProgress;

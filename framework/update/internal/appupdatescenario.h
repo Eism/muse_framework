@@ -49,6 +49,8 @@ public:
     AppUpdateScenario(const modularity::ContextPtr& iocCtx)
         : Contextable(iocCtx) {}
 
+    void init();
+
     bool needCheckForUpdate() const override;
     void checkForUpdate(bool manual) override;
 
@@ -59,6 +61,10 @@ public:
     std::string readyUpdateVersion() const override;
 
     void installReadyUpdate() override;
+
+    bool hasCompletedUpdate() const override;
+    async::Notification hasCompletedUpdateChanged() const override;
+    void dismissCompletedUpdate() override;
 
 private:
     friend class AppUpdateScenarioTests;
@@ -86,5 +92,8 @@ private:
     io::path_t m_readyPackagePath;
     std::string m_readyUpdateVersion;
     async::Notification m_hasReadyUpdateChanged;
+
+    bool m_hasCompletedUpdate = false;
+    async::Notification m_hasCompletedUpdateChanged;
 };
 }
