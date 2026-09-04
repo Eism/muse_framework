@@ -63,11 +63,12 @@ public:
 private:
     friend class AppUpdateScenarioTests;
 
-    muse::async::Promise<Ret> processUpdateError(int errorCode);
+    muse::async::Promise<Ret> processUpdateError(const Ret& error);
 
     async::Promise<IInteractive::Result> showNoUpdateMsg();
     muse::async::Promise<Ret> showReleaseInfo(const ReleaseInfo& info);
     async::Promise<IInteractive::Result> showServerErrorMsg();
+    async::Promise<Ret> askToRetryOnNotEnoughDiskSpace(const Ret& error, const std::function<async::Promise<Ret>()>& retry);
 
     void downloadUpdateInBackground();
 
