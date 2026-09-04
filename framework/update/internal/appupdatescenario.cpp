@@ -149,10 +149,7 @@ Promise<Ret> AppUpdateScenario::showReleaseInfo(const ReleaseInfo& info)
             return resolve(muse::make_ret(Ret::Code::Cancel));
         }
 
-        //! NOTE: In test mode we skip the progress dialog and jump straight to the "needs to close" dialog...
-        const bool testMode = configuration()->checkForUpdateTestMode();
-        auto promise = testMode ? askToCloseAppAndCompleteInstall(/*installerPath*/ String()) : downloadRelease();
-        promise.onResolve(this, [resolve](const Ret& ret) {
+        downloadRelease().onResolve(this, [resolve](const Ret& ret) {
             (void)resolve(ret);
         });
 
@@ -313,7 +310,7 @@ Promise<Ret> AppUpdateScenario::askToCloseAppAndCompleteInstall(const io::path_t
 
 bool AppUpdateScenario::shouldIgnoreUpdate(const ReleaseInfo& info) const
 {
-    return info.version == configuration()->skippedReleaseVersion() && !configuration()->checkForUpdateTestMode();
+    return info.version == configuration()->skippedReleaseVersion();
 }
 
 void AppUpdateScenario::downloadUpdateInBackground()

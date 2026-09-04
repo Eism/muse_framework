@@ -129,10 +129,6 @@ Promise<RetVal<ReleaseInfo> > AppUpdateService::checkForUpdate()
     return Promise<RetVal<ReleaseInfo> >([this](auto resolve, auto) {
         clear();
 
-        if (configuration()->checkForUpdateTestMode()) {
-            return resolve(m_lastCheckResult);
-        }
-
         if (!m_networkManager) {
             m_networkManager = networkManagerCreator()->makeNetworkManager();
         }

@@ -48,8 +48,6 @@ public:
     MOCK_METHOD(muse::io::path_t, lastDownloadedPackagePath, (), (const, override));
     MOCK_METHOD(void, setLastDownloadedPackagePath, (const muse::io::path_t&), (override));
 
-    MOCK_METHOD(bool, checkForUpdateTestMode, (), (const, override));
-
     MOCK_METHOD(std::string, checkForAppUpdateUrl, (), (const, override));
     MOCK_METHOD(std::string, previousAppReleasesNotesUrl, (), (const, override));
 

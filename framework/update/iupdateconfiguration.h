@@ -54,8 +54,6 @@ public:
     virtual muse::io::path_t lastDownloadedPackagePath() const = 0;
     virtual void setLastDownloadedPackagePath(const muse::io::path_t& path) = 0;
 
-    virtual bool checkForUpdateTestMode() const = 0;
-
     virtual std::string checkForAppUpdateUrl() const = 0;
     virtual std::string previousAppReleasesNotesUrl() const = 0;
 

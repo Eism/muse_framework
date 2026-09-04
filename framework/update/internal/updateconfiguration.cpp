@@ -31,7 +31,6 @@ using namespace muse::update;
 static const std::string module_name("update");
 
 static const Settings::Key CHECK_FOR_UPDATE_KEY(module_name, "application/checkForUpdate");
-static const Settings::Key CHECK_FOR_UPDATE_TEST_MODE_KEY(module_name, "application/checkForUpdateTestMode");
 static const Settings::Key ALLOW_UPDATE_ON_PRERELEASE(module_name, "application/allowUpdateOnPreRelease");
 static const Settings::Key SKIPPED_VERSION_KEY(module_name, "application/skippedVersion");
 static const Settings::Key LAST_DOWNLOADED_PACKAGE_KEY(module_name, "application/lastDownloadedPackage");
@@ -45,8 +44,6 @@ void UpdateConfiguration::init()
     settings()->valueChanged(CHECK_FOR_UPDATE_KEY).onReceive(this, [this](const Val&) {
         m_needCheckForUpdateChanged.notify();
     });
-
-    settings()->setDefaultValue(CHECK_FOR_UPDATE_TEST_MODE_KEY, Val(false));
 
     bool allowUpdateOnPreRelease = false;
 #ifdef MUSESCORE_ALLOW_UPDATE_ON_PRERELEASE
@@ -117,11 +114,6 @@ muse::io::path_t UpdateConfiguration::lastDownloadedPackagePath() const
 void UpdateConfiguration::setLastDownloadedPackagePath(const muse::io::path_t& path)
 {
     settings()->setSharedValue(LAST_DOWNLOADED_PACKAGE_KEY, Val(path));
-}
-
-bool UpdateConfiguration::checkForUpdateTestMode() const
-{
-    return settings()->value(CHECK_FOR_UPDATE_TEST_MODE_KEY).toBool();
 }
 
 std::string UpdateConfiguration::checkForAppUpdateUrl() const
