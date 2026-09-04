@@ -46,8 +46,6 @@ public:
     io::path_t lastDownloadedPackagePath() const override;
     void setLastDownloadedPackagePath(const io::path_t& path) override;
 
-    bool checkForUpdateTestMode() const override;
-
     std::string checkForAppUpdateUrl() const override;
     std::string previousAppReleasesNotesUrl() const override;
 
