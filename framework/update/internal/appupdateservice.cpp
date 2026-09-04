@@ -512,10 +512,6 @@ QJsonObject AppUpdateService::resolveReleaseAsset(const QJsonObject& release) co
 
 bool AppUpdateService::canAutoInstall() const
 {
-    if (!configuration()->autoInstallEnabled()) {
-        return false;
-    }
-
     return updateInstaller()->isInPlaceUpdateSupported();
 }
 
