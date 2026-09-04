@@ -28,31 +28,78 @@ import Muse.UiComponents
 ColumnLayout {
     id: root
 
+    property string appName: ""
     property string updateVersion: ""
 
+    signal detailsRequested()
     signal installRequested()
+    signal dismissRequested()
 
     spacing: 8
 
-    StyledTextLabel {
-        Layout.fillWidth: true
+    ColumnLayout {
+        spacing: 4
 
-        horizontalAlignment: Text.AlignLeft
-        wrapMode: Text.WordWrap
+        RowLayout {
+            Layout.fillWidth: true
 
-        text: root.updateVersion.length > 0
-              ? qsTrc("update", "Update to version %1 is ready").arg(root.updateVersion)
-              : qsTrc("update", "An update is ready")
+            spacing: 8
+
+            StyledTextLabel {
+                Layout.fillWidth: true
+
+                horizontalAlignment: Text.AlignLeft
+
+                text: qsTrc("update", "Update available")
+                font: ui.theme.largeBodyBoldFont
+            }
+
+            FlatButton {
+                icon: IconCode.CLOSE_X_ROUNDED
+                transparent: true
+
+                navigation.accessible.name: qsTrc("update", "Dismiss")
+
+                onClicked: {
+                    root.dismissRequested()
+                }
+            }
+        }
+
+        StyledTextLabel {
+            Layout.fillWidth: true
+
+            horizontalAlignment: Text.AlignLeft
+            wrapMode: Text.WordWrap
+
+            text: root.updateVersion.length > 0 ? root.appName + " " + root.updateVersion : root.appName
+        }
     }
 
-    FlatButton {
+    RowLayout {
         Layout.fillWidth: true
 
-        text: qsTrc("update", "Update")
-        accentButton: true
+        spacing: 4
 
-        onClicked: {
-            root.installRequested()
+        FlatButton {
+            Layout.fillWidth: true
+
+            text: qsTrc("update", "See details")
+
+            onClicked: {
+                root.detailsRequested()
+            }
+        }
+
+        FlatButton {
+            Layout.fillWidth: true
+
+            text: qsTrc("update", "Update")
+            accentButton: true
+
+            onClicked: {
+                root.installRequested()
+            }
         }
     }
 }

@@ -332,7 +332,7 @@ bool AppUpdateScenario::shouldIgnoreUpdate(const ReleaseInfo& info) const
 
 void AppUpdateScenario::downloadUpdateInBackground()
 {
-    if (m_bgDownloadInProgress || hasReadyUpdate()) {
+    if (m_bgDownloadInProgress || !m_readyPackagePath.empty()) {
         return;
     }
 
@@ -350,6 +350,7 @@ void AppUpdateScenario::downloadUpdateInBackground()
     if (service()->isReleaseDownloaded()) {
         m_readyPackagePath = service()->downloadedReleasePath();
         m_readyUpdateVersion = service()->lastCheckResult().val.version;
+        m_readyUpdateDismissed = false;
         m_hasReadyUpdateChanged.notify();
         return;
     }
@@ -382,6 +383,7 @@ void AppUpdateScenario::downloadUpdateInBackground()
 
         m_readyPackagePath = res.val.toString();
         m_readyUpdateVersion = service()->lastCheckResult().val.version;
+        m_readyUpdateDismissed = false;
         m_hasReadyUpdateChanged.notify();
     }, Asyncable::Mode::SetReplace);
 }
@@ -417,7 +419,7 @@ void AppUpdateScenario::dismissCompletedUpdate()
 
 bool AppUpdateScenario::hasReadyUpdate() const
 {
-    return !m_readyPackagePath.empty();
+    return !m_readyPackagePath.empty() && !m_readyUpdateDismissed;
 }
 
 async::Notification AppUpdateScenario::hasReadyUpdateChanged() const
@@ -431,6 +433,20 @@ std::string AppUpdateScenario::readyUpdateVersion() const
 }
 
 void AppUpdateScenario::installReadyUpdate()
+{
+    if (m_readyPackagePath.empty()) {
+        return;
+    }
+
+    if (!service()->canAutoInstall() || multiwindowsProvider()->windowCount() != 1) {
+        askToCloseAppAndCompleteInstall(m_readyPackagePath).onResolve(this, [](const Ret&) {});
+        return;
+    }
+
+    prepareAndInstall(m_readyPackagePath).onResolve(this, [](const Ret&) {});
+}
+
+void AppUpdateScenario::showReadyUpdateInfo()
 {
     if (m_readyPackagePath.empty()) {
         return;
@@ -453,15 +469,18 @@ void AppUpdateScenario::installReadyUpdate()
             return;
         }
 
-        if (actionCode != "install") {
-            return;
+        if (actionCode == "install") {
+            installReadyUpdate();
         }
-
-        if (!service()->canAutoInstall() || multiwindowsProvider()->windowCount() != 1) {
-            askToCloseAppAndCompleteInstall(m_readyPackagePath).onResolve(this, [](const Ret&) {});
-            return;
-        }
-
-        prepareAndInstall(m_readyPackagePath).onResolve(this, [](const Ret&) {});
     });
+}
+
+void AppUpdateScenario::dismissReadyUpdate()
+{
+    if (m_readyPackagePath.empty() || m_readyUpdateDismissed) {
+        return;
+    }
+
+    m_readyUpdateDismissed = true;
+    m_hasReadyUpdateChanged.notify();
 }

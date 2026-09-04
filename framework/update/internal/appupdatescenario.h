@@ -61,6 +61,8 @@ public:
     std::string readyUpdateVersion() const override;
 
     void installReadyUpdate() override;
+    void showReadyUpdateInfo() override;
+    void dismissReadyUpdate() override;
 
     bool hasCompletedUpdate() const override;
     async::Notification hasCompletedUpdateChanged() const override;
@@ -90,6 +92,7 @@ private:
 
     bool m_bgDownloadInProgress = false;
     io::path_t m_readyPackagePath;
+    bool m_readyUpdateDismissed = false;
     std::string m_readyUpdateVersion;
     async::Notification m_hasReadyUpdateChanged;
 
