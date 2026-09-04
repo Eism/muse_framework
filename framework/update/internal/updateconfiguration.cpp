@@ -35,7 +35,7 @@ static const Settings::Key CHECK_FOR_UPDATE_TEST_MODE_KEY(module_name, "applicat
 static const Settings::Key ALLOW_UPDATE_ON_PRERELEASE(module_name, "application/allowUpdateOnPreRelease");
 static const Settings::Key SKIPPED_VERSION_KEY(module_name, "application/skippedVersion");
 static const Settings::Key LAST_DOWNLOADED_PACKAGE_KEY(module_name, "application/lastDownloadedPackage");
-static const Settings::Key AUTO_INSTALL_KEY(module_name, "application/autoInstall");
+static const Settings::Key AUTO_DOWNLOAD_KEY(module_name, "application/autoDownload");
 
 void UpdateConfiguration::init()
 {
@@ -56,7 +56,7 @@ void UpdateConfiguration::init()
 #endif
     settings()->setDefaultValue(ALLOW_UPDATE_ON_PRERELEASE, Val(allowUpdateOnPreRelease));
 
-    settings()->setDefaultValue(AUTO_INSTALL_KEY, Val(true));
+    settings()->setDefaultValue(AUTO_DOWNLOAD_KEY, Val(true));
 }
 
 bool UpdateConfiguration::isAppUpdatable() const
@@ -89,14 +89,14 @@ async::Notification UpdateConfiguration::needCheckForUpdateChanged() const
     return m_needCheckForUpdateChanged;
 }
 
-bool UpdateConfiguration::autoInstallEnabled() const
+bool UpdateConfiguration::autoDownloadEnabled() const
 {
-    return settings()->value(AUTO_INSTALL_KEY).toBool();
+    return settings()->value(AUTO_DOWNLOAD_KEY).toBool();
 }
 
-void UpdateConfiguration::setAutoInstallEnabled(bool enabled)
+void UpdateConfiguration::setAutoDownloadEnabled(bool enabled)
 {
-    settings()->setSharedValue(AUTO_INSTALL_KEY, Val(enabled));
+    settings()->setSharedValue(AUTO_DOWNLOAD_KEY, Val(enabled));
 }
 
 std::string UpdateConfiguration::skippedReleaseVersion() const

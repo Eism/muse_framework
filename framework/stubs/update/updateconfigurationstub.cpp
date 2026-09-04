@@ -52,12 +52,12 @@ muse::async::Notification UpdateConfigurationStub::needCheckForUpdateChanged() c
     return n;
 }
 
-bool UpdateConfigurationStub::autoInstallEnabled() const
+bool UpdateConfigurationStub::autoDownloadEnabled() const
 {
     return false;
 }
 
-void UpdateConfigurationStub::setAutoInstallEnabled(bool)
+void UpdateConfigurationStub::setAutoDownloadEnabled(bool)
 {
 }
 

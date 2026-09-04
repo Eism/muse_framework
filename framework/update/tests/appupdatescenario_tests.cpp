@@ -74,7 +74,7 @@ public:
         m_multiwindowsProvider = std::make_shared<NiceMock<mi::MultiWindowsProviderMock> >();
         m_scenario->multiwindowsProvider.set(m_multiwindowsProvider);
 
-        //! [GIVEN] An update is available and auto-install is enabled
+        //! [GIVEN] An update is available and automatic download is enabled
         ReleaseInfo info;
         info.version = "1000.0";
         m_lastCheckResult = RetVal<ReleaseInfo>::make_ok(info);
@@ -85,7 +85,7 @@ public:
         ON_CALL(*m_service, isReleaseDownloaded())
         .WillByDefault(Return(false));
 
-        ON_CALL(*m_configuration, autoInstallEnabled())
+        ON_CALL(*m_configuration, autoDownloadEnabled())
         .WillByDefault(Return(true));
     }
 
@@ -169,6 +169,24 @@ TEST_F(AppUpdateScenarioTests, BgDownload_UnmeteredNetwork_StartsDownload)
     //! [THEN] The update is surfaced as ready to install
     EXPECT_TRUE(m_scenario->hasReadyUpdate());
     EXPECT_EQ(m_scenario->readyUpdateVersion(), "1000.0");
+}
+
+TEST_F(AppUpdateScenarioTests, BgDownload_AutoDownloadDisabled_SkipsDownload)
+{
+    //! [GIVEN] The user turned automatic download off
+    ON_CALL(*m_configuration, autoDownloadEnabled())
+    .WillByDefault(Return(false));
+    ON_CALL(*m_networkInformation, isMetered())
+    .WillByDefault(Return(false));
+
+    //! [THEN] No download is started
+    EXPECT_CALL(*m_service, downloadRelease())
+    .Times(0);
+
+    //! [WHEN] A background download is requested
+    downloadUpdateInBackground();
+
+    EXPECT_FALSE(m_scenario->hasReadyUpdate());
 }
 
 TEST_F(AppUpdateScenarioTests, BgDownload_MeteredNetwork_SkipsDownload)
