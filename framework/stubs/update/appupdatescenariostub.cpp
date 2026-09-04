@@ -69,3 +69,11 @@ muse::async::Notification AppUpdateScenarioStub::hasCompletedUpdateChanged() con
 void AppUpdateScenarioStub::dismissCompletedUpdate()
 {
 }
+
+void AppUpdateScenarioStub::showReadyUpdateInfo()
+{
+}
+
+void AppUpdateScenarioStub::dismissReadyUpdate()
+{
+}

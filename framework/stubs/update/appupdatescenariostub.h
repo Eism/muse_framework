@@ -38,6 +38,8 @@ public:
     std::string readyUpdateVersion() const override;
 
     void installReadyUpdate() override;
+    void showReadyUpdateInfo() override;
+    void dismissReadyUpdate() override;
 
     bool hasCompletedUpdate() const override;
     async::Notification hasCompletedUpdateChanged() const override;

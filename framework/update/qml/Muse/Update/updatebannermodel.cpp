@@ -49,9 +49,24 @@ QString UpdateBannerModel::updateVersion() const
     return QString::fromStdString(scenario()->readyUpdateVersion());
 }
 
+QString UpdateBannerModel::appName() const
+{
+    return application()->title().toQString();
+}
+
 void UpdateBannerModel::install()
 {
     scenario()->installReadyUpdate();
+}
+
+void UpdateBannerModel::showDetails()
+{
+    scenario()->showReadyUpdateInfo();
+}
+
+void UpdateBannerModel::dismissReady()
+{
+    scenario()->dismissReadyUpdate();
 }
 
 bool UpdateBannerModel::updateCompleted() const

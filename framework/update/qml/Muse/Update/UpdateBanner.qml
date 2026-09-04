@@ -67,10 +67,19 @@ Rectangle {
         id: readyContent
 
         UpdateReadyContent {
+            appName: updateBannerModel.appName
             updateVersion: updateBannerModel.updateVersion
+
+            onDetailsRequested: {
+                updateBannerModel.showDetails()
+            }
 
             onInstallRequested: {
                 updateBannerModel.install()
+            }
+
+            onDismissRequested: {
+                updateBannerModel.dismissReady()
             }
         }
     }

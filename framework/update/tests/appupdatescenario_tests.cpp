@@ -471,3 +471,59 @@ TEST_F(AppUpdateScenarioTests, Init_NothingWasInstalling_NoCompletedUpdate)
 
     EXPECT_FALSE(m_scenario->hasCompletedUpdate());
 }
+
+TEST_F(AppUpdateScenarioTests, DismissReadyUpdate_HidesBanner_KeepsPackage)
+{
+    //! [GIVEN] A ready update
+    ON_CALL(*m_networkInformation, isMetered())
+    .WillByDefault(Return(false));
+    EXPECT_CALL(*m_service, downloadRelease())
+    .WillOnce(Return(RetVal<Progress>::make_ok(m_downloadProgress)));
+
+    downloadUpdateInBackground();
+    m_downloadProgress.finish(ProgressResult::make_ok(Val(std::string("upd/MuseScore.dmg"))));
+    ASSERT_TRUE(m_scenario->hasReadyUpdate());
+
+    //! [THEN] The package is not removed
+    EXPECT_CALL(*m_service, removeDownloadedRelease())
+    .Times(0);
+
+    //! [WHEN] The user closes the banner
+    m_scenario->dismissReadyUpdate();
+
+    //! [THEN] The banner is hidden, but the update can still be installed
+    EXPECT_FALSE(m_scenario->hasReadyUpdate());
+
+    ON_CALL(*m_service, canAutoInstall())
+    .WillByDefault(Return(false));
+    EXPECT_CALL(*m_interactive, info(_, _, _, _, _, _))
+    .WillOnce(dialog(IInteractive::Button::Cancel));
+
+    m_scenario->installReadyUpdate();
+    pump();
+}
+
+TEST_F(AppUpdateScenarioTests, InstallReadyUpdate_GoesStraightToInstall)
+{
+    //! [GIVEN] A ready update and no in-place install support
+    ON_CALL(*m_networkInformation, isMetered())
+    .WillByDefault(Return(false));
+    EXPECT_CALL(*m_service, downloadRelease())
+    .WillOnce(Return(RetVal<Progress>::make_ok(m_downloadProgress)));
+
+    downloadUpdateInBackground();
+    m_downloadProgress.finish(ProgressResult::make_ok(Val(std::string("upd/MuseScore.dmg"))));
+
+    ON_CALL(*m_service, canAutoInstall())
+    .WillByDefault(Return(false));
+
+    //! [THEN] No release info dialog is opened; the install prompt follows directly
+    EXPECT_CALL(*m_interactive, open(_))
+    .Times(0);
+    EXPECT_CALL(*m_interactive, info(_, _, _, _, _, _))
+    .WillOnce(dialog(IInteractive::Button::Cancel));
+
+    //! [WHEN] The user chooses "Restart and update"
+    m_scenario->installReadyUpdate();
+    pump();
+}

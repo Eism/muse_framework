@@ -28,6 +28,7 @@
 
 #include "modularity/ioc.h"
 
+#include "global/iapplication.h"
 #include "iappupdatescenario.h"
 
 namespace muse::update {
@@ -37,10 +38,12 @@ class UpdateBannerModel : public QObject, public Contextable, public async::Asyn
 
     Q_PROPERTY(bool updateReady READ updateReady NOTIFY updateReadyChanged)
     Q_PROPERTY(QString updateVersion READ updateVersion NOTIFY updateReadyChanged)
+    Q_PROPERTY(QString appName READ appName CONSTANT)
     Q_PROPERTY(bool updateCompleted READ updateCompleted NOTIFY updateCompletedChanged)
 
     QML_ELEMENT
 
+    GlobalInject<IApplication> application;
     ContextInject<IAppUpdateScenario> scenario = { this };
 
 public:
@@ -48,10 +51,13 @@ public:
 
     Q_INVOKABLE void load();
     Q_INVOKABLE void install();
+    Q_INVOKABLE void showDetails();
+    Q_INVOKABLE void dismissReady();
     Q_INVOKABLE void dismissCompleted();
 
     bool updateReady() const;
     QString updateVersion() const;
+    QString appName() const;
     bool updateCompleted() const;
 
 signals:
