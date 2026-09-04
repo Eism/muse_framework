@@ -21,14 +21,24 @@
  */
 #include <gmock/gmock.h>
 
+#include <QThreadPool>
+
 #include "mocks/updateconfigurationmock.h"
 #include "mocks/appupdateservicemock.h"
 #include "network/tests/mocks/networkinformationmock.h"
+#include "interactive/tests/mocks/interactivemock.h"
+#include "multiwindows/tests/mocks/multiwindowsprovidermock.h"
+
+#include "async/processevents.h"
 
 #include "update/internal/appupdatescenario.h"
+#include "update/updateerrors.h"
 
 #include "modularity/ioc.h"
 
+using ::testing::_;
+using ::testing::Invoke;
+using ::testing::InvokeWithoutArgs;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::ReturnRef;
@@ -52,6 +62,17 @@ public:
 
         m_networkInformation = std::make_shared<NiceMock<network::NetworkInformationMock> >();
         m_scenario->networkInformation.set(m_networkInformation);
+
+        m_interactive = std::make_shared<NiceMock<InteractiveMock> >();
+        m_scenario->interactive.set(m_interactive);
+
+        ON_CALL(*m_interactive, buttonData(_))
+        .WillByDefault(Invoke([](IInteractive::Button btn) {
+            return IInteractive::ButtonData(btn, std::string());
+        }));
+
+        m_multiwindowsProvider = std::make_shared<NiceMock<mi::MultiWindowsProviderMock> >();
+        m_scenario->multiwindowsProvider.set(m_multiwindowsProvider);
 
         //! [GIVEN] An update is available and auto-install is enabled
         ReleaseInfo info;
@@ -78,10 +99,47 @@ public:
         m_scenario->downloadUpdateInBackground();
     }
 
+    async::Promise<Ret> downloadRelease()
+    {
+        return m_scenario->downloadRelease();
+    }
+
+    async::Promise<Ret> prepareAndInstall(const io::path_t& packagePath)
+    {
+        return m_scenario->prepareAndInstall(packagePath);
+    }
+
+    //! A dialog action: the promise is created at call time (so the caller can
+    //! subscribe to it) and resolves with the given button once messages are processed
+    static auto dialog(IInteractive::Button btn)
+    {
+        return InvokeWithoutArgs([btn]() {
+            return async::make_promise<IInteractive::Result>([btn](auto resolve) {
+                return resolve(IInteractive::Result(static_cast<int>(btn)));
+            });
+        });
+    }
+
+    static RetVal<Val> notEnoughDiskSpace()
+    {
+        return RetVal<Val>(make_ret(Err::NotEnoughDiskSpace, "Free up 250 MB"));
+    }
+
+    //! Drain background work and queued async calls
+    static void pump()
+    {
+        for (int i = 0; i < 10; ++i) {
+            QThreadPool::globalInstance()->waitForDone();
+            async::processMessages();
+        }
+    }
+
     AppUpdateScenario* m_scenario = nullptr;
     std::shared_ptr<UpdateConfigurationMock> m_configuration;
     std::shared_ptr<AppUpdateServiceMock> m_service;
     std::shared_ptr<network::NetworkInformationMock> m_networkInformation;
+    std::shared_ptr<InteractiveMock> m_interactive;
+    std::shared_ptr<mi::MultiWindowsProviderMock> m_multiwindowsProvider;
     RetVal<ReleaseInfo> m_lastCheckResult;
     Progress m_downloadProgress;
 };
@@ -101,7 +159,7 @@ TEST_F(AppUpdateScenarioTests, BgDownload_UnmeteredNetwork_StartsDownload)
     downloadUpdateInBackground();
 
     //! [WHEN] The download finishes successfully
-    m_downloadProgress.finish(ProgressResult::make_ok(Val(std::string("/tmp/upd/MuseScore.dmg"))));
+    m_downloadProgress.finish(ProgressResult::make_ok(Val(std::string("upd/MuseScore.dmg"))));
 
     //! [THEN] The update is surfaced as ready to install
     EXPECT_TRUE(m_scenario->hasReadyUpdate());
@@ -148,7 +206,7 @@ TEST_F(AppUpdateScenarioTests, BgDownload_AlreadyDownloaded_SurfacedEvenOnMetere
     ON_CALL(*m_service, isReleaseDownloaded())
     .WillByDefault(Return(true));
     ON_CALL(*m_service, downloadedReleasePath())
-    .WillByDefault(Return(io::path_t("/tmp/upd/MuseScore.dmg")));
+    .WillByDefault(Return(io::path_t("upd/MuseScore.dmg")));
 
     //! [GIVEN] The network connection is metered
     ON_CALL(*m_networkInformation, isMetered())
@@ -164,4 +222,119 @@ TEST_F(AppUpdateScenarioTests, BgDownload_AlreadyDownloaded_SurfacedEvenOnMetere
     //! [THEN] The downloaded update is still surfaced as ready to install
     EXPECT_TRUE(m_scenario->hasReadyUpdate());
     EXPECT_EQ(m_scenario->readyUpdateVersion(), "1000.0");
+}
+
+TEST_F(AppUpdateScenarioTests, BgDownload_NotEnoughDiskSpace_SkipsSilently)
+{
+    //! [GIVEN] The network connection is not metered
+    ON_CALL(*m_networkInformation, isMetered())
+    .WillByDefault(Return(false));
+
+    //! [GIVEN] The service refuses to download because the disk is full
+    EXPECT_CALL(*m_service, downloadRelease())
+    .WillOnce(Return(RetVal<Progress>::make_ret(make_ret(Err::NotEnoughDiskSpace))));
+
+    //! [WHEN] A background download is requested
+    downloadUpdateInBackground();
+
+    //! [THEN] No update is surfaced as ready and a later retry is allowed
+    EXPECT_FALSE(m_scenario->hasReadyUpdate());
+
+    EXPECT_CALL(*m_service, downloadRelease())
+    .WillOnce(Return(RetVal<Progress>::make_ok(m_downloadProgress)));
+    downloadUpdateInBackground();
+}
+
+TEST_F(AppUpdateScenarioTests, ManualDownload_NotEnoughDiskSpace_Cancel_Stops)
+{
+    //! [GIVEN] The download dialog refuses to start because the disk is full
+    EXPECT_CALL(*m_interactive, openSync(_))
+    .WillOnce(Return(notEnoughDiskSpace()));
+
+    //! [THEN] An error with the details from the service is shown, and the user cancels
+    EXPECT_CALL(*m_interactive, error(_, _, _, _, _, _))
+    .WillOnce(Invoke([](const std::string&, const IInteractive::Text& text, const IInteractive::ButtonDatas&,
+                        int, const IInteractive::Options&, const std::string&) {
+        EXPECT_EQ(text.text, "Free up 250 MB");
+        return async::make_promise<IInteractive::Result>([](auto resolve) {
+            return resolve(IInteractive::Result(static_cast<int>(IInteractive::Button::Cancel)));
+        });
+    }));
+
+    //! [WHEN] A manual download is requested
+    Ret result;
+    downloadRelease().onResolve(m_scenario, [&result](const Ret& ret) { result = ret; });
+    pump();
+
+    //! [THEN] The flow ends with Cancel
+    EXPECT_EQ(result.code(), static_cast<int>(Ret::Code::Cancel));
+}
+
+TEST_F(AppUpdateScenarioTests, ManualDownload_NotEnoughDiskSpace_Retry_ReopensDownload)
+{
+    //! [GIVEN] The disk is still full on the second attempt
+    EXPECT_CALL(*m_interactive, openSync(_))
+    .Times(2)
+    .WillRepeatedly(Return(notEnoughDiskSpace()));
+
+    //! [THEN] The user retries once, then cancels
+    EXPECT_CALL(*m_interactive, error(_, _, _, _, _, _))
+    .WillOnce(dialog(IInteractive::Button::Retry))
+    .WillOnce(dialog(IInteractive::Button::Cancel));
+
+    //! [WHEN] A manual download is requested
+    Ret result;
+    downloadRelease().onResolve(m_scenario, [&result](const Ret& ret) { result = ret; });
+    pump();
+
+    EXPECT_EQ(result.code(), static_cast<int>(Ret::Code::Cancel));
+}
+
+TEST_F(AppUpdateScenarioTests, ManualDownload_NotEnoughDiskSpace_RetrySucceeds_ProceedsToInstall)
+{
+    //! [GIVEN] Space was freed up before the retry, so the second attempt downloads the package
+    EXPECT_CALL(*m_interactive, openSync(_))
+    .WillOnce(Return(notEnoughDiskSpace()))
+    .WillOnce(Return(RetVal<Val>::make_ok(Val(std::string("upd/MuseScore.dmg")))));
+
+    EXPECT_CALL(*m_interactive, error(_, _, _, _, _, _))
+    .WillOnce(dialog(IInteractive::Button::Retry));
+
+    //! [GIVEN] Auto-install is not available, so the manual install prompt follows
+    ON_CALL(*m_service, canAutoInstall())
+    .WillByDefault(Return(false));
+
+    //! [THEN] The "close to complete installation" prompt is shown
+    EXPECT_CALL(*m_interactive, info(_, _, _, _, _, _))
+    .WillOnce(dialog(IInteractive::Button::Cancel));
+
+    //! [WHEN] A manual download is requested
+    Ret result;
+    downloadRelease().onResolve(m_scenario, [&result](const Ret& ret) { result = ret; });
+    pump();
+
+    EXPECT_EQ(result.code(), static_cast<int>(Ret::Code::Cancel));
+}
+
+TEST_F(AppUpdateScenarioTests, PrepareAndInstall_NotEnoughDiskSpace_Retry_PreparesAgain)
+{
+    //! [GIVEN] Staging fails for lack of space the first time and succeeds after a retry
+    const io::path_t package("upd/MuseScore.dmg");
+    EXPECT_CALL(*m_service, prepareUpdate(package))
+    .WillOnce(Return(RetVal<io::path_t>(make_ret(Err::NotEnoughDiskSpace, "Free up 250 MB"))))
+    .WillOnce(Return(RetVal<io::path_t>::make_ok(io::path_t("upd/staging/MuseScore.app"))));
+
+    EXPECT_CALL(*m_interactive, error(_, _, _, _, _, _))
+    .WillOnce(dialog(IInteractive::Button::Retry));
+
+    //! [THEN] The restart prompt is shown; no fallback to the manual install prompt
+    EXPECT_CALL(*m_interactive, info(_, _, _, _, _, _))
+    .WillOnce(dialog(IInteractive::Button::Cancel));
+
+    //! [WHEN] The downloaded package is installed
+    Ret result;
+    prepareAndInstall(package).onResolve(m_scenario, [&result](const Ret& ret) { result = ret; });
+    pump();
+
+    EXPECT_EQ(result.code(), static_cast<int>(Ret::Code::Cancel));
 }

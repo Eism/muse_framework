@@ -1030,6 +1030,7 @@ Ret Interactive::toRet(const QVariant& jsr) const
 
     Ret ret;
     ret.setCode(jsobj.value("errcode").toInt());
+    ret.setText(jsobj.value("text").toString().toStdString());
     return ret;
 }
 

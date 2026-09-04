@@ -19,25 +19,18 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-
 #pragma once
 
-#include "types/ret.h"
+#include <gmock/gmock.h>
+
+#include "update/iupdateinstaller.h"
 
 namespace muse::update {
-enum class Err {
-    Undefined       = int(muse::Ret::Code::Undefined),
-    NoError         = int(muse::Ret::Code::Ok),
-    UnknownError    = int(muse::Ret::Code::UpdateFirst),
-
-    NoUpdate,
-    NetworkError,
-    ReleaseInfoParseError,
-    NotEnoughDiskSpace,
-};
-
-inline muse::Ret make_ret(Err e, const std::string& text = {})
+class UpdateInstallerMock : public IUpdateInstaller
 {
-    return muse::Ret(static_cast<int>(e), text);
-}
+public:
+    MOCK_METHOD(bool, isInPlaceUpdateSupported, (), (const, override));
+    MOCK_METHOD(RetVal<muse::io::path_t>, prepareUpdate, (const muse::io::path_t&), (override));
+    MOCK_METHOD(Ret, finalizeUpdate, (const muse::io::path_t&, const InstallProgressUi&), (override));
+};
 }

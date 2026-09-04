@@ -80,6 +80,12 @@ private:
 
     RetVal<ReleaseInfo> parseRelease(const QByteArray& json) const;
 
+    enum class DiskSpaceFor {
+        Download,   //!< package (minus already downloaded bytes) + unpack room if auto-install
+        Unpack      //!< staging of an already downloaded package
+    };
+    Ret checkDiskSpace(DiskSpaceFor purpose, uint64_t packageSize, uint64_t downloadedBytes = 0) const;
+
     InstallProgressUi makeInstallProgressUi() const;
 
     //! Ordered list of acceptable asset suffixes for this platform, most

@@ -92,23 +92,24 @@ bool AppUpdateScenario::hasUpdate() const
     return !shouldIgnoreUpdate(lastCheckResult.val);
 }
 
-Promise<Ret> AppUpdateScenario::processUpdateError(int errorCode)
+Promise<Ret> AppUpdateScenario::processUpdateError(const Ret& error)
 {
     const auto unknownError = async::make_promise<Ret>([](auto resolve, auto) {
         return resolve(muse::make_ret(Ret::Code::UnknownError));
     });
 
+    const int errorCode = error.code();
     IF_ASSERT_FAILED(errorCode >= static_cast<int>(Ret::Code::UpdateFirst)
                      && errorCode <= static_cast<int>(Ret::Code::UpdateLast)) {
         return unknownError;
     }
 
-    const Err error = static_cast<Err>(errorCode);
-    IF_ASSERT_FAILED(error != Err::NoError) {
+    const Err err = static_cast<Err>(errorCode);
+    IF_ASSERT_FAILED(err != Err::NoError) {
         return unknownError;
     }
 
-    auto message = error == Err::NoUpdate ? showNoUpdateMsg() : showServerErrorMsg();
+    auto message = err == Err::NoUpdate ? showNoUpdateMsg() : showServerErrorMsg();
     return message.then<Ret>(this, [errorCode](const IInteractive::Result&, auto resolve) {
         const Ret::Code code = static_cast<Ret::Code>(errorCode);
         return resolve(muse::make_ret(code));
@@ -167,14 +168,41 @@ Promise<IInteractive::Result> AppUpdateScenario::showServerErrorMsg()
                                 muse::trc("update", "Check for update"));
 }
 
+Promise<Ret> AppUpdateScenario::askToRetryOnNotEnoughDiskSpace(const Ret& error, const std::function<Promise<Ret>()>& retry)
+{
+    const IInteractive::ButtonDatas buttons = {
+        interactive()->buttonData(IInteractive::Button::Cancel),
+        interactive()->buttonData(IInteractive::Button::Retry)
+    };
+
+    return interactive()->error(muse::trc("update", "Not enough disk space"), error.text(),
+                                buttons, int(IInteractive::Button::Retry), { IInteractive::WithIcon },
+                                muse::trc("update", "Check for update"))
+           .then<Ret>(this, [this, retry](const IInteractive::Result& res, auto resolve) {
+        if (!res.isButton(IInteractive::Button::Retry)) {
+            return resolve(muse::make_ret(Ret::Code::Cancel));
+        }
+
+        retry().onResolve(this, [resolve](const Ret& ret) {
+            (void)resolve(ret);
+        });
+
+        return Promise<Ret>::dummy_result();
+    });
+}
+
 Promise<Ret> AppUpdateScenario::downloadRelease()
 {
     io::path_t packagePath = service()->downloadedReleasePath();
 
     if (packagePath.empty()) {
         RetVal<Val> rv = interactive()->openSync("muse://update/app?mode=download");
+        if (rv.ret.code() == static_cast<int>(Err::NotEnoughDiskSpace)) {
+            return askToRetryOnNotEnoughDiskSpace(rv.ret, [this]() { return downloadRelease(); });
+        }
+
         if (!rv.ret) {
-            return processUpdateError(rv.ret.code());
+            return processUpdateError(rv.ret);
         }
         packagePath = rv.val.toString();
     }
@@ -202,6 +230,13 @@ Promise<Ret> AppUpdateScenario::prepareAndInstall(const io::path_t& packagePath)
             async::Async::call(this, [this, packagePath, prepared, resolve]() {
                 auto complete = [resolve](const Ret& ret) { (void)resolve(ret); };
                 if (!prepared.ret) {
+                    if (prepared.ret.code() == static_cast<int>(Err::NotEnoughDiskSpace)) {
+                        askToRetryOnNotEnoughDiskSpace(prepared.ret, [this, packagePath]() {
+                            return prepareAndInstall(packagePath);
+                        }).onResolve(this, complete);
+                        return;
+                    }
+
                     LOGE() << "failed to prepare update, falling back to manual install: " << prepared.ret.toString();
                     askToCloseAppAndCompleteInstall(packagePath).onResolve(this, complete);
                     return;

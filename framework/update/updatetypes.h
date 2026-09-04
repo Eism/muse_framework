@@ -54,6 +54,7 @@ struct ReleaseInfo {
     std::string version;
     std::string fileName;
     std::string fileUrl;
+    uint64_t fileSize = 0;
 
     std::string imageUrl;           // it can be base64 data, like "data:image/png;base64,iVBORw0KGgoA......"
     std::string notes;
@@ -101,6 +102,7 @@ static inline ValMap releaseInfoToValMap(const ReleaseInfo& info)
         { "version", Val(info.version) },
         { "fileName", Val(info.fileName) },
         { "fileUrl", Val(info.fileUrl) },
+        { "fileSize", Val(static_cast<int64_t>(info.fileSize)) },
         { "notes", Val(info.notes) },
         { "previousReleasesNotes", Val(releasesNotesToValList(info.previousReleasesNotes)) },
         { "additionalInfo", Val(info.additionInfo) },
@@ -117,6 +119,7 @@ static inline ReleaseInfo releaseInfoFromValMap(const ValMap& map)
     info.version = map.at("version").toString();
     info.fileName = map.at("fileName").toString();
     info.fileUrl = map.at("fileUrl").toString();
+    info.fileSize = static_cast<uint64_t>(map.at("fileSize").toInt64());
     info.notes = map.at("notes").toString();
     info.previousReleasesNotes = releasesNotesFromValList(map.at("previousReleasesNotes").toList());
     info.additionInfo = map.at("additionalInfo").toMap();
