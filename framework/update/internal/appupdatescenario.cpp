@@ -38,6 +38,19 @@ using namespace muse::update;
 using namespace muse::actions;
 using namespace muse::async;
 
+void AppUpdateScenario::init()
+{
+    const std::string installing = configuration()->installingReleaseVersion();
+    if (installing.empty()) {
+        return;
+    }
+
+    configuration()->setInstallingReleaseVersion(std::string());
+
+    //! NOTE: The version differs if the user canceled the installer or it failed.
+    m_hasCompletedUpdate = Version(installing) == application()->fullVersion();
+}
+
 bool AppUpdateScenario::needCheckForUpdate() const
 {
     return configuration()->needCheckForUpdate();
@@ -274,6 +287,8 @@ Promise<Ret> AppUpdateScenario::askToRestartAndInstall(const io::path_t& package
             return Promise<Ret>::dummy_result();
         }
 
+        configuration()->setInstallingReleaseVersion(service()->lastCheckResult().val.version);
+
         //! NOTE: The helper has been spawned and will replace the app and
         //! relaunch once we quit. Quit without an installer path so the
         //! legacy "open installer" path is not taken.
@@ -298,6 +313,8 @@ Promise<Ret> AppUpdateScenario::askToCloseAppAndCompleteInstall(const io::path_t
         if (res.isButton(IInteractive::Button::Cancel)) {
             return resolve(muse::make_ret(Ret::Code::Cancel));
         }
+
+        configuration()->setInstallingReleaseVersion(service()->lastCheckResult().val.version);
 
         if (multiwindowsProvider()->windowCount() != 1) {
             multiwindowsProvider()->quitAllAndRunInstallation(packagePath);
@@ -376,6 +393,26 @@ void AppUpdateScenario::skipRelease(const std::string& version)
 
     m_readyPackagePath = io::path_t();
     m_hasReadyUpdateChanged.notify();
+}
+
+bool AppUpdateScenario::hasCompletedUpdate() const
+{
+    return m_hasCompletedUpdate;
+}
+
+async::Notification AppUpdateScenario::hasCompletedUpdateChanged() const
+{
+    return m_hasCompletedUpdateChanged;
+}
+
+void AppUpdateScenario::dismissCompletedUpdate()
+{
+    if (!m_hasCompletedUpdate) {
+        return;
+    }
+
+    m_hasCompletedUpdate = false;
+    m_hasCompletedUpdateChanged.notify();
 }
 
 bool AppUpdateScenario::hasReadyUpdate() const

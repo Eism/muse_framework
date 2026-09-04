@@ -23,18 +23,17 @@
 
 #include <QThreadPool>
 
-#include "mocks/updateconfigurationmock.h"
-#include "mocks/appupdateservicemock.h"
+#include "global/tests/mocks/applicationmock.h"
 #include "network/tests/mocks/networkinformationmock.h"
 #include "interactive/tests/mocks/interactivemock.h"
 #include "multiwindows/tests/mocks/multiwindowsprovidermock.h"
+#include "mocks/updateconfigurationmock.h"
+#include "mocks/appupdateservicemock.h"
 
 #include "async/processevents.h"
 
 #include "update/internal/appupdatescenario.h"
 #include "update/updateerrors.h"
-
-#include "modularity/ioc.h"
 
 using ::testing::_;
 using ::testing::Invoke;
@@ -74,6 +73,14 @@ public:
         m_multiwindowsProvider = std::make_shared<NiceMock<mi::MultiWindowsProviderMock> >();
         m_scenario->multiwindowsProvider.set(m_multiwindowsProvider);
 
+        m_application = std::make_shared<NiceMock<ApplicationMock> >();
+        m_scenario->application.set(m_application);
+
+        ON_CALL(*m_application, fullVersion())
+        .WillByDefault(Return(Version(CURRENT_VERSION)));
+        ON_CALL(*m_application, title())
+        .WillByDefault(Return(String(u"App")));
+
         //! [GIVEN] An update is available and automatic download is enabled
         ReleaseInfo info;
         info.version = "1000.0";
@@ -97,6 +104,11 @@ public:
     void downloadUpdateInBackground()
     {
         m_scenario->downloadUpdateInBackground();
+    }
+
+    void init()
+    {
+        m_scenario->init();
     }
 
     void skipRelease(const std::string& version)
@@ -139,7 +151,10 @@ public:
         }
     }
 
+    static constexpr const char* CURRENT_VERSION = "4.0.0";
+
     AppUpdateScenario* m_scenario = nullptr;
+    std::shared_ptr<ApplicationMock> m_application;
     std::shared_ptr<UpdateConfigurationMock> m_configuration;
     std::shared_ptr<AppUpdateServiceMock> m_service;
     std::shared_ptr<network::NetworkInformationMock> m_networkInformation;
@@ -405,4 +420,54 @@ TEST_F(AppUpdateScenarioTests, SkipRelease_WhileDownloading_DoesNotSurfaceUpdate
 
     //! [THEN] The skipped release is not surfaced as ready to install
     EXPECT_FALSE(m_scenario->hasReadyUpdate());
+}
+
+TEST_F(AppUpdateScenarioTests, Init_LaunchedWithInstalledVersion_ReportsCompletedUpdate)
+{
+    //! [GIVEN] The app quit to install this very version and is now running it
+    ON_CALL(*m_configuration, installingReleaseVersion())
+    .WillByDefault(Return(CURRENT_VERSION));
+
+    //! [THEN] The record is cleared so the banner shows only once
+    EXPECT_CALL(*m_configuration, setInstallingReleaseVersion(""));
+
+    //! [WHEN] The scenario starts
+    init();
+
+    //! [THEN] The update is reported as completed until dismissed
+    EXPECT_TRUE(m_scenario->hasCompletedUpdate());
+
+    m_scenario->dismissCompletedUpdate();
+    EXPECT_FALSE(m_scenario->hasCompletedUpdate());
+}
+
+TEST_F(AppUpdateScenarioTests, Init_InstallDidNotHappen_NoCompletedUpdate)
+{
+    //! [GIVEN] The app quit to install a version, but still runs the old one
+    ON_CALL(*m_configuration, installingReleaseVersion())
+    .WillByDefault(Return("1000.0"));
+
+    //! [THEN] The record is still cleared
+    EXPECT_CALL(*m_configuration, setInstallingReleaseVersion(""));
+
+    //! [WHEN] The scenario starts
+    init();
+
+    //! [THEN] Nothing is reported
+    EXPECT_FALSE(m_scenario->hasCompletedUpdate());
+}
+
+TEST_F(AppUpdateScenarioTests, Init_NothingWasInstalling_NoCompletedUpdate)
+{
+    //! [GIVEN] A regular launch
+    ON_CALL(*m_configuration, installingReleaseVersion())
+    .WillByDefault(Return(""));
+
+    EXPECT_CALL(*m_configuration, setInstallingReleaseVersion(_))
+    .Times(0);
+
+    //! [WHEN] The scenario starts
+    init();
+
+    EXPECT_FALSE(m_scenario->hasCompletedUpdate());
 }

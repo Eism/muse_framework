@@ -55,3 +55,17 @@ std::string AppUpdateScenarioStub::readyUpdateVersion() const
 void AppUpdateScenarioStub::installReadyUpdate()
 {
 }
+
+bool AppUpdateScenarioStub::hasCompletedUpdate() const
+{
+    return false;
+}
+
+muse::async::Notification AppUpdateScenarioStub::hasCompletedUpdateChanged() const
+{
+    return {};
+}
+
+void AppUpdateScenarioStub::dismissCompletedUpdate()
+{
+}

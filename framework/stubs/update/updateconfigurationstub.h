@@ -43,6 +43,9 @@ public:
     std::string skippedReleaseVersion() const override;
     void setSkippedReleaseVersion(const std::string& version) override;
 
+    std::string installingReleaseVersion() const override;
+    void setInstallingReleaseVersion(const std::string& version) override;
+
     io::path_t lastDownloadedPackagePath() const override;
     void setLastDownloadedPackagePath(const io::path_t& path) override;
 
