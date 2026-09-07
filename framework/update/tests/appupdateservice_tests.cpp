@@ -609,6 +609,27 @@ TEST_F(AppUpdateServiceTests, DownloadRelease_UnknownPackageSize_SkipsDiskSpaceC
     EXPECT_TRUE(rv.ret);
 }
 
+TEST_F(AppUpdateServiceTests, DownloadRelease_AbsurdPackageSize_Rejected)
+{
+    //! [GIVEN] The server reports a package size far beyond anything real
+    //! (3 * size would wrap around uint64_t to 2 bytes)
+    givenAvailableRelease("MuseScore.dmg", "upd", 6148914691236517206ull);
+    ON_CALL(*m_fileSystem, exists(_))
+    .WillByDefault(Return(Ret(false)));
+    ON_CALL(*m_fileSystem, availableSpace(_))
+    .WillByDefault(Return(RetVal<uint64_t>::make_ok(10000ull * 1024 * 1024)));
+
+    //! [THEN] No network request is made
+    EXPECT_CALL(*m_networkManager, get(_, _, _))
+    .Times(0);
+
+    //! [WHEN] Download the release
+    RetVal<Progress> rv = m_service->downloadRelease();
+
+    //! [THEN] The download is refused
+    EXPECT_EQ(rv.ret.code(), static_cast<int>(Err::NotEnoughDiskSpace));
+}
+
 TEST_F(AppUpdateServiceTests, DownloadRelease_Resume_OnlyRemainingBytesRequired)
 {
     //! [GIVEN] A 100 MB release, 90 MB already downloaded, and 120 MB available

@@ -55,6 +55,8 @@ static const std::string PARTIAL_SUFFIX(".part");
 static constexpr uint64_t UNPACK_SIZE_FACTOR = 2;
 static constexpr uint64_t DISK_SPACE_RESERVE = 100ull * 1024 * 1024;
 
+static constexpr uint64_t MAX_PACKAGE_SIZE = 500ull * 1024 * 1024;
+
 static QDate calculateWeekBeginForDate(const QDate& date)
 {
     // 1 (Monday) + 6 mod 7 = 0
@@ -332,6 +334,11 @@ Ret AppUpdateService::checkDiskSpace(DiskSpaceFor purpose, uint64_t packageSize,
 {
     if (packageSize == 0) {
         return make_ok();
+    }
+
+    if (packageSize > MAX_PACKAGE_SIZE) {
+        LOGW() << "package size is not sane: " << packageSize;
+        return make_ret(Err::NotEnoughDiskSpace);
     }
 
     io::path_t dir;
