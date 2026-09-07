@@ -5,12 +5,10 @@ set(HERE ${CMAKE_CURRENT_LIST_DIR})
 # Options for generate
 set(APP_BIN "" CACHE STRING "Path to app binary")
 set(GENERATE_ARCHS "" CACHE STRING "Generate symbols for architectures")
-set(BUILD_DIR "${CMAKE_SOURCE_DIR}/build.release" CACHE STRING "Path to build directory")
 
 set(CONFIG
     -DAPP_BIN=${APP_BIN}
     -DGENERATE_ARCHS=${GENERATE_ARCHS}
-    -DBUILD_DIR=${BUILD_DIR}
 )
 
 execute_process(

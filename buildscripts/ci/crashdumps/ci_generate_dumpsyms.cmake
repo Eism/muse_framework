@@ -9,7 +9,6 @@ set(SYMBOLS_DIR ${ARTIFACTS_DIR}/symbols)
 # Options
 set(APP_BIN "" CACHE STRING "Path to app binary")
 set(GENERATE_ARCHS "" CACHE STRING "Generate symbols for architectures")
-set(BUILD_DIR "${CMAKE_SOURCE_DIR}/build.release" CACHE STRING "Path to build directory")
 
 # dump_syms is provided by extdeps. _deps lands next to this script (gitignored).
 # extdeps defaults to <project root>/muse_deps; override with -DEXTDEPS_DIR.
@@ -24,9 +23,10 @@ else()
     set(DUMPSYMS_BIN "${_bin_dir}/dump_syms")
 endif()
 
+file(REMOVE_RECURSE ${SYMBOLS_DIR})
+
 set(CONFIG
     -DDUMPSYMS_BIN=${DUMPSYMS_BIN}
-    -DBUILD_DIR=${BUILD_DIR}
     -DSYMBOLS_DIR=${SYMBOLS_DIR}
     -DAPP_BIN=${APP_BIN}
     -DGENERATE_ARCHS=${GENERATE_ARCHS}
@@ -41,8 +41,6 @@ if(result)
     message(FATAL_ERROR "Failed to generate symbols, exit code: ${result}")
 endif()
 
-execute_process(
-    COMMAND ls ${SYMBOLS_DIR} OUTPUT_VARIABLE symbols_dir_contents
-)
-
-message(STATUS "SYMBOLS_DIR contents: ${symbols_dir_contents}")
+file(GLOB_RECURSE symbols_files RELATIVE ${SYMBOLS_DIR} ${SYMBOLS_DIR}/*.sym)
+list(JOIN symbols_files "\n  " symbols_files)
+message(STATUS "SYMBOLS_DIR contents:\n  ${symbols_files}")

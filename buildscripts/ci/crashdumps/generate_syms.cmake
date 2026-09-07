@@ -1,96 +1,69 @@
-set(HERE ${CMAKE_CURRENT_LIST_DIR})
+# Dumps breakpad symbols with mozilla/dump_syms into SYMBOLS_DIR/<module>/<debug id>/<module>.sym.
+# On macOS the frameworks and dylibs bundled with the app are dumped as well.
 
-# Options
-option(SHOW_HELP "Show help message" OFF)
 set(DUMPSYMS_BIN "" CACHE STRING "Path to dump_syms binary")
-set(BUILD_DIR "" CACHE STRING "Path to build directory")
 set(SYMBOLS_DIR "" CACHE STRING "Path to output symbols directory")
-set(APP_BIN "" CACHE STRING "Path to app binary")
-
-set(GENERATE_ARCHS "" CACHE STRING "Generate symbols for architectures")
+set(APP_BIN "" CACHE STRING "Path to app binary (.pdb on Windows)")
+set(GENERATE_ARCHS "" CACHE STRING "Architectures to dump from a fat binary, space separated")
 separate_arguments(GENERATE_ARCHS_LIST UNIX_COMMAND "${GENERATE_ARCHS}")
 
-if(SHOW_HELP)
-    message(STATUS "Usage: cmake -DSHOW_HELP=ON [OPTIONS] ...")
-    message(STATUS "Generate dump symbols")
-    message(STATUS " ")
-    message(STATUS "    -DDUMPSYMS_BIN=path    path to dump_syms binary, default use path from environment path")
-    message(STATUS "    -DBUILD_DIR=path      path to build dir")
-    message(STATUS "    -DSYMBOLS_DIR=path    path to output symbols dir, default '../../build.symbols'")
-    message(STATUS "    -DAPP_BIN=path     path to mscore binary")
-    message(STATUS "    -DGENERATE_ARCHS=archs  generate symbols for architectures")
-    message(STATUS "    -DSHOW_HELP=ON        display this help and exit")
-    message(STATUS " ")
-    message(STATUS "Example:")
-    message(STATUS "  cmake -DBUILD_DIR=../../build.debug -DAPP_BIN=../../build.debug/install/bin/app")
-    return()
-endif()
-
-# Check required variables
-if(NOT DUMPSYMS_BIN)
-    message(FATAL_ERROR "error: not set DUMPSYMS_BIN")
-endif()
-if(NOT BUILD_DIR)
-    message(FATAL_ERROR "error: not set BUILD_DIR")
-endif()
-if(NOT SYMBOLS_DIR)
-    message(FATAL_ERROR "error: not set SYMBOLS_DIR")
-endif()
-if(NOT APP_BIN)
-    message(FATAL_ERROR "error: not set APP_BIN")
-endif()
-
-set(GEN_SCRIPT "${HERE}/posix/generate_breakpad_symbols.py")
-if(WIN32)
-    set(GEN_SCRIPT "${HERE}/win/generate_breakpad_symbols.py")
+foreach(var DUMPSYMS_BIN SYMBOLS_DIR APP_BIN)
+    if(NOT ${var})
+        message(FATAL_ERROR "error: not set ${var}")
+    endif()
+endforeach()
+if(NOT EXISTS "${APP_BIN}")
+    message(FATAL_ERROR "error: ${APP_BIN} not found")
 endif()
 
 message(STATUS "DUMPSYMS_BIN: ${DUMPSYMS_BIN}")
-message(STATUS "BUILD_DIR: ${BUILD_DIR}")
 message(STATUS "SYMBOLS_DIR: ${SYMBOLS_DIR}")
 message(STATUS "APP_BIN: ${APP_BIN}")
 
-if(NOT GENERATE_ARCHS_LIST)
-    message(STATUS "Generate symbols")
-
-    set(GEN_ARGS
-        --dumpsyms-bin=${DUMPSYMS_BIN}
-        --symbols-dir=${SYMBOLS_DIR}
-        --build-dir=${BUILD_DIR}
-        --binary=${APP_BIN}
-        --clear
-        --verbose
-    )
-
-    execute_process(
-        COMMAND python3 ${GEN_SCRIPT} ${GEN_ARGS} RESULT_VARIABLE result
-    )
-
-    if(result)
-        message(FATAL_ERROR "Failed to generate dump symbols")
-    else()
-        message(STATUS "Dump symbols generated successfully")
-    endif()
-else()
-    foreach(ARCH IN LISTS GENERATE_ARCHS_LIST)
-        message(STATUS "Generate symbols for ${ARCH}")
-
-        set(GEN_ARGS
-            --dumpsyms-bin=${DUMPSYMS_BIN}
-            --symbols-dir=${SYMBOLS_DIR}
-            --build-dir=${BUILD_DIR}
-            --binary=${APP_BIN}
-            --arch=${ARCH}
-        )
-
-        execute_process(
-            COMMAND python3 ${GEN_SCRIPT} ${GEN_ARGS} RESULT_VARIABLE result
-        )
-
-        if(result)
-            message(FATAL_ERROR "Failed to generate dump symbols")
-        else()
-            message(STATUS "Dump symbols generated successfully for ${ARCH}")
+set(LIBS "")
+if(APPLE AND APP_BIN MATCHES "^(.*\\.app)/Contents/MacOS/")
+    file(GLOB_RECURSE candidates LIST_DIRECTORIES false "${CMAKE_MATCH_1}/Contents/Frameworks/*")
+    foreach(f ${candidates})
+        if(f MATCHES "\\.dSYM/")
+            continue()
+        endif()
+        get_filename_component(f "${f}" REALPATH)
+        file(READ "${f}" magic LIMIT 4 HEX)
+        if(magic MATCHES "^(cffaedfe|cefaedfe|cafebabe)$") # MH_MAGIC_64, MH_MAGIC, FAT_MAGIC
+            list(APPEND LIBS "${f}")
         endif()
     endforeach()
+    list(REMOVE_DUPLICATES LIBS)
 endif()
+
+if(NOT GENERATE_ARCHS_LIST)
+    set(GENERATE_ARCHS_LIST "host")
+endif()
+
+foreach(arch ${GENERATE_ARCHS_LIST})
+    set(arch_args "")
+    if(NOT arch STREQUAL "host")
+        set(arch_args -a ${arch})
+    endif()
+
+    message(STATUS "Generate symbols for ${APP_BIN} (${arch})")
+    execute_process(
+        COMMAND ${DUMPSYMS_BIN} ${arch_args} --check-cfi --store ${SYMBOLS_DIR} ${APP_BIN}
+        RESULT_VARIABLE result
+    )
+    if(result)
+        message(FATAL_ERROR "dump_syms failed for ${APP_BIN}, exit code: ${result}")
+    endif()
+
+    if(LIBS)
+        list(LENGTH LIBS libs_count)
+        message(STATUS "Generate symbols for ${libs_count} bundled libraries (${arch})")
+        execute_process(
+            COMMAND ${DUMPSYMS_BIN} ${arch_args} --store ${SYMBOLS_DIR} ${LIBS}
+            RESULT_VARIABLE result
+        )
+        if(result)
+            message(FATAL_ERROR "dump_syms failed for bundled libraries, exit code: ${result}")
+        endif()
+    endif()
+endforeach()

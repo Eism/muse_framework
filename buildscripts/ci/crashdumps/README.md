@@ -28,15 +28,16 @@ Also, dumps automatically sent to the crash reports server (we use Sentry), if a
 To view the crash report needs debug symbols, otherwise, we will not see the name of the function, there will only be addressed.  
   
 ### Generate debug symbols
-To get the debug symbols, you need the `dump_syms` utility. It can be downloaded from [this](https://github.com/musescore/crashpad_fork/tree/main/prebuilds/breakpad) repository for your platform. You need to put it in some directory and add this directory to the system `path`, or you can specify the path to `dump_syms` explicitly when calling the script.    
-Also, you need the installed `python2` and `bash` shell (for Windows you can use `git bash`)  
-  
-To generate symbols, you need to call the `generate_syms.sh` script (see `generate_syms.sh -h` for help)   
-   
-For all builds on CI, symbols are generated automatically and saved to the `symbols` directory in the archive with the artifact.  
-  
-Symbols **must fully match** the build on which the crash occurred and the dump was created. Otherwise, the names of the functions will not be shown, or not what it should actually be shown.  
-   
+Symbols are dumped with [mozilla/dump_syms](https://github.com/mozilla/dump_syms) (a `muse_deps` tool, fetched automatically) into the breakpad layout `symbols/<module>/<debug id>/<module>.sym`:
+
+    cmake -DAPP_BIN=<path to binary, .pdb on Windows> [-DGENERATE_ARCHS="x86_64 arm64"] -P buildscripts/ci/crashdumps/ci_generate_dumpsyms.cmake
+
+On macOS the frameworks and dylibs bundled with the app are dumped too. On Windows the `.exe` must lie next to the `.pdb`, it provides the unwind information.
+
+For all builds on CI, symbols are generated automatically and saved to the `symbols` directory in the archive with the artifact.
+
+Symbols **must fully match** the build on which the crash occurred and the dump was created. Otherwise, the names of the functions will not be shown, or not what it should actually be shown.
+
 ### View report 
 To view the dump report, you need the `minidump_stackwalk` utility. It can be downloaded from [this](https://github.com/musescore/crashpad_fork/tree/main/prebuilds/breakpad) repository for your platform. You need to put it in some directory and add this directory to the system `path`, or you can specify the path to `minidump_stackwalk` explicitly when calling the script.    
 Also, you need the `bash` shell (for Windows you can use `git bash`)    
