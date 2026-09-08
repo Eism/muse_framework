@@ -58,7 +58,7 @@ ColumnLayout {
                 icon: IconCode.CLOSE_X_ROUNDED
                 transparent: true
 
-                navigation.accessible.name: qsTrc("update", "Dismiss")
+                navigation.accessible.name: qsTrc("global", "Dismiss")
 
                 onClicked: {
                     root.dismissRequested()

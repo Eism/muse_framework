@@ -49,6 +49,7 @@ public:
 
     virtual EntryType entryType(const io::path_t& path) const = 0;
 
+    //! NOTE In bytes
     virtual RetVal<uint64_t> fileSize(const io::path_t& path) const = 0;
     virtual RetVal<uint64_t> availableSpace(const io::path_t& path) const = 0;
 
