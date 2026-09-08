@@ -75,6 +75,7 @@ public:
     muse::io::path_t updateDataPath() const override;
     muse::io::path_t downloadsPath() const override;
     muse::io::path_t updateRequestHistoryJsonPath() const override;
+    muse::io::path_t helperLogPath() const override;
 
 private:
     muse::async::Notification m_needCheckForUpdateChanged;

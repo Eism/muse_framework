@@ -170,3 +170,8 @@ muse::io::path_t UpdateConfiguration::updateRequestHistoryJsonPath() const
 {
     return globalConfiguration()->userAppDataPath() + "/update_request_history.json";
 }
+
+muse::io::path_t UpdateConfiguration::helperLogPath() const
+{
+    return globalConfiguration()->userAppDataPath() + "/logs/museupdater.log";
+}

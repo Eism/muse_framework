@@ -68,6 +68,7 @@ public:
     virtual muse::io::path_t updateDataPath() const = 0;
     virtual muse::io::path_t downloadsPath() const = 0;
     virtual muse::io::path_t updateRequestHistoryJsonPath() const = 0;
+    virtual muse::io::path_t helperLogPath() const = 0;
 };
 }
 

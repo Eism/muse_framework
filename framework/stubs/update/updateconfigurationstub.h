@@ -59,6 +59,7 @@ public:
 
     io::path_t updateDataPath() const override;
     io::path_t downloadsPath() const override;
+    io::path_t helperLogPath() const override;
     io::path_t updateRequestHistoryJsonPath() const override;
 };
 }

@@ -127,3 +127,8 @@ std::string UpdateConfigurationStub::installingReleaseVersion() const
 void UpdateConfigurationStub::setInstallingReleaseVersion(const std::string&)
 {
 }
+
+muse::io::path_t UpdateConfigurationStub::helperLogPath() const
+{
+    return "";
+}

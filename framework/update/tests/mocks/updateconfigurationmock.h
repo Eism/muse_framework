@@ -61,6 +61,7 @@ public:
 
     MOCK_METHOD(muse::io::path_t, updateDataPath, (), (const, override));
     MOCK_METHOD(muse::io::path_t, downloadsPath, (), (const, override));
+    MOCK_METHOD(muse::io::path_t, helperLogPath, (), (const, override));
     MOCK_METHOD(muse::io::path_t, updateRequestHistoryJsonPath, (), (const, override));
 };
 }
