@@ -1,9 +1,12 @@
-# Uploads the generated breakpad symbols to sentry. sentry-cli from extdeps.
+# Uploads debug information files to sentry. sentry-cli from extdeps.
+#
+# Defaults to the breakpad symbols generated into build.artifacts/symbols, but
+# SYMBOLS_PATH accepts any list of paths, files as well as directories, so that
+# native debug files (pdb, dSYM, elf) can be uploaded without converting them.
 
 set(HERE ${CMAKE_CURRENT_LIST_DIR})
 
-set(ARTIFACTS_DIR "build.artifacts")
-set(SYMBOLS_PATH "${ARTIFACTS_DIR}/symbols")
+set(SYMBOLS_PATH "${CMAKE_SOURCE_DIR}/build.artifacts/symbols" CACHE STRING "Paths with debug information files to upload")
 
 set(SENTRY_URL "" CACHE STRING "Sentry URL")
 set(SENTRY_AUTH_TOKEN "" CACHE STRING "Sentry Auth Token")
@@ -24,6 +27,11 @@ endif()
 if(NOT SENTRY_PROJECT)
     message(FATAL_ERROR "error: not set SENTRY_PROJECT")
 endif()
+foreach(_path IN LISTS SYMBOLS_PATH)
+    if(NOT EXISTS "${_path}")
+        message(FATAL_ERROR "error: SYMBOLS_PATH does not exist: ${_path}")
+    endif()
+endforeach()
 
 message(STATUS "SYMBOLS_PATH: ${SYMBOLS_PATH}")
 message(STATUS "SENTRY_URL: ${SENTRY_URL}")

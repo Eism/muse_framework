@@ -1,4 +1,4 @@
-# Generates breakpad symbols for the built app and uploads them to sentry.
+# Uploads debug information files for the built app to sentry.
 
 set(HERE ${CMAKE_CURRENT_LIST_DIR})
 
@@ -6,20 +6,28 @@ set(HERE ${CMAKE_CURRENT_LIST_DIR})
 set(APP_BIN "" CACHE STRING "Path to app binary")
 set(GENERATE_ARCHS "" CACHE STRING "Generate symbols for architectures")
 set(BUILD_DIR "${CMAKE_SOURCE_DIR}/build.release" CACHE STRING "Path to build directory")
+set(DIF_PATHS "" CACHE STRING "Native debug info files to upload as is, instead of generating breakpad symbols")
 
-set(CONFIG
-    -DAPP_BIN=${APP_BIN}
-    -DGENERATE_ARCHS=${GENERATE_ARCHS}
-    -DBUILD_DIR=${BUILD_DIR}
-)
+if(DIF_PATHS)
+    message(STATUS "Upload native debug info files, skip breakpad symbols generation")
+    set(SYMBOLS_PATH "${DIF_PATHS}")
+else()
+    set(CONFIG
+        -DAPP_BIN=${APP_BIN}
+        -DGENERATE_ARCHS=${GENERATE_ARCHS}
+        -DBUILD_DIR=${BUILD_DIR}
+    )
 
-execute_process(
-    COMMAND cmake ${CONFIG} -P ${HERE}/ci_generate_dumpsyms.cmake
-    RESULT_VARIABLE result
-)
+    execute_process(
+        COMMAND cmake ${CONFIG} -P ${HERE}/ci_generate_dumpsyms.cmake
+        RESULT_VARIABLE result
+    )
 
-if(result)
-    message(FATAL_ERROR "Failed to generate dump symbols, exit code: ${result}")
+    if(result)
+        message(FATAL_ERROR "Failed to generate dump symbols, exit code: ${result}")
+    endif()
+
+    set(SYMBOLS_PATH "${CMAKE_SOURCE_DIR}/build.artifacts/symbols")
 endif()
 
 # Options for upload
@@ -38,7 +46,7 @@ set(CONFIG
 )
 
 execute_process(
-    COMMAND cmake ${CONFIG} -P ${HERE}/ci_sentry_dumpsyms_upload.cmake
+    COMMAND cmake "-DSYMBOLS_PATH=${SYMBOLS_PATH}" ${CONFIG} -P ${HERE}/ci_sentry_dumpsyms_upload.cmake
     RESULT_VARIABLE result
 )
 

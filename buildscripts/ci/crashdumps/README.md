@@ -33,7 +33,16 @@ Also, you need the installed `python2` and `bash` shell (for Windows you can use
   
 To generate symbols, you need to call the `generate_syms.sh` script (see `generate_syms.sh -h` for help)   
    
-For all builds on CI, symbols are generated automatically and saved to the `symbols` directory in the archive with the artifact.  
+On CI this conversion step is skipped on every platform: the native debug files are uploaded to Sentry as they are (see `DIF_PATHS` in `ci_generate_and_upload.cmake`). Breakpad symbols discard information, inline functions most notably, so Sentry recommends the native files instead.  
+
+What gets uploaded per platform:  
+  - **Windows** - `MuseScoreStudio5.exe` and `MuseScoreStudio5.pdb`. Both, because for a 64-bit build the unwind info lives in the PE while the debug info and the symbol table live in the PDB.
+  - **Linux** - the unstripped `mscore4portable` from the build tree. The binary shipped in the AppImage is stripped (`CMAKE_INSTALL_DO_STRIP`).
+  - **macOS** - `mscore` and the `.dSYM` collected by `dsymutil`. The DWARF never reaches the linked binary on macOS, it stays in the object files and the binary only carries a debug map.
+
+All of this only works if the build actually carries debug info, so CI builds `RelWithDebInfo` on every platform. A plain `Release` build has no DWARF at all and a crash report then resolves to function names only, with no file and line.  
+
+Note that the native debug files are **not** copied into `build.artifacts`, so unlike the old breakpad symbols they are not part of the CI artifact - to debug a dump locally, rebuild or take them from the build directory.  
   
 Symbols **must fully match** the build on which the crash occurred and the dump was created. Otherwise, the names of the functions will not be shown, or not what it should actually be shown.  
    
